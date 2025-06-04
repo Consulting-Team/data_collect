@@ -1,0 +1,83 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'data_collect'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=data_collect",
+                    "--package=data_collect"
+                ],
+                "filter": {
+                    "name": "data_collect",
+                    "kind": "bin"
+                }
+            },
+            "args": ["-f", "res/DP_IMO9986104_20250530230013.xml"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'dp_to_csv'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=dp_to_csv",
+                    "--package=data_collect"
+                ],
+                "filter": {
+                    "name": "dp_to_csv",
+                    "kind": "bin"
+                }
+            },
+            "args": ["-f", "res/DP_IMO9986104_20250530230013.xml"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'data_collect'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=data_collect",
+                    "--package=data_collect",
+                ],
+                "filter": {
+                    "name": "data_collect",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'my_test'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=my_test",
+                    "--package=data_collect"
+                ],
+                "filter": {
+                    "name": "my_test",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
