@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         // parse arguments
         let mut ap = ArgumentParser::new();
-        ap.set_description("Export dp");
+        ap.set_description("Extract DP and export it to csv.");
         ap.refer(&mut input)
             .required()
             .add_option(&["-f", "--file"], Store, "input file name");
