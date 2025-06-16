@@ -1,0 +1,198 @@
+use argparse::{ArgumentParser, Store};
+use chrono::NaiveDate;
+use dotenv::dotenv;
+use log::{error, info};
+use polars::{io::SerReader, prelude::CsvReader};
+use std::{
+    env,
+    error::Error,
+    fs::File,
+    io::{Cursor, Read},
+    path::PathBuf,
+    process::{Command, Stdio},
+};
+
+const NUM_DASHES: usize = 10;
+
+#[derive(Debug)]
+struct Config {
+    pub base: PathBuf,
+    pub out: PathBuf,
+    pub data_dir: PathBuf,
+    pub imo: String,
+    pub date: NaiveDate,
+}
+
+impl Config {
+    fn new() -> Result<Self, Box<dyn Error>> {
+        let exe = env::current_exe()?;
+        let base = exe
+            .parent()
+            .ok_or("Failed to get the base path.")?
+            .to_path_buf();
+        let mut imo = String::default();
+        let mut date = String::default();
+        let mut out = base.join("out");
+
+        dotenv().ok();
+
+        // parse the arguments
+        {
+            let mut ap = ArgumentParser::new();
+            ap.set_description("Read data files and concat it");
+            ap.refer(&mut imo)
+                .required()
+                .add_option(&["--imo"], Store, "hull number");
+            ap.refer(&mut date)
+                .required()
+                .add_option(&["-d", "--date"], Store, "date");
+            ap.refer(&mut out)
+                .add_option(&["-o", "--out"], Store, "output directory");
+            ap.parse_args_or_exit();
+        }
+
+        // set IMO number
+        imo = imo.replace("IMO", "");
+
+        // parse date to NaiveDate
+        let date = NaiveDate::parse_from_str(&date, "%Y%m%d")?;
+
+        unsafe {
+            env::set_var("LOG_OUT", &out);
+        }
+
+        // init log4rs
+        log4rs::init_file(base.join(env::var("LOG_CONFIG")?), Default::default())?;
+
+        // set data path
+        let data_dir = PathBuf::from(format!(
+            "{}/IMO{}/{}/{}/{}",
+            env::var("DATA_SOURCE")?,
+            imo,
+            date.format("%Y"),
+            date.format("%m"),
+            date.format("%d")
+        ));
+
+        Ok(Config {
+            base,
+            out,
+            imo,
+            date,
+            data_dir,
+        })
+    }
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    //! 데이터 합치기
+    let start = std::time::Instant::now();
+    let config = Config::new()?;
+
+    info!(
+        "{dashes} THE PROGRAM STARTED {dashes}",
+        dashes = "-".repeat(NUM_DASHES)
+    );
+
+    if !config.data_dir.exists() {
+        error!(
+            "Not existing data path: \"{}\"\n",
+            config.data_dir.display()
+        );
+        std::process::exit(1);
+    }
+
+    // print inputs
+    print_inputs(&config)?;
+
+    // get data files corresponding to input date
+    let paths = get_zip_list(&config)?;
+
+    //
+    read_zips(&paths)?;
+
+    info!(
+        "👀 Elapsed time: {:.2} (sec)\n",
+        start.elapsed().as_secs_f32()
+    );
+
+    Ok(())
+}
+
+fn print_inputs(config: &Config) -> Result<(), Box<dyn Error>> {
+    info!("👉 Show Inputs");
+    info!("- IMO NUMBER: {}", config.imo);
+    info!("- DATE: {}", config.date);
+    info!("- BASE DIRECTORY: {}", config.base.display());
+    info!("- OUTPUT DIRECTORY: {}", config.out.display());
+    info!("- DATA DIRECTORY: {}", config.data_dir.display());
+    info!("");
+
+    Ok(())
+}
+
+fn get_zip_list(config: &Config) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    //! Returns the list of files in data directory.
+    info!("👉 Get the list of data files");
+
+    let data_dir = &config.data_dir;
+
+    let ls = Command::new("ls")
+        .arg(data_dir)
+        .stdout(Stdio::piped())
+        .spawn()?
+        .stdout
+        .ok_or("Failed to excute ls cmd.")?;
+
+    let grep = Command::new("grep")
+        // .arg(date.format("%Y%m%d").to_string())
+        .arg("Zip")
+        .stdin(Stdio::from(ls))
+        .output()?;
+
+    let out = String::from_utf8(grep.stdout)?;
+    let paths = out.lines().map(|f| data_dir.join(f)).collect::<Vec<_>>();
+
+    // print file list
+    for (i, path) in paths.iter().enumerate() {
+        let fname = path
+            .file_name()
+            .ok_or("Failed to get the file name.")?
+            .to_str()
+            .ok_or("Failed to parse &OsSt to &str")?;
+        info!("[{i}] {}", fname);
+    }
+
+    info!("");
+
+    Ok(paths)
+}
+
+fn read_zips(paths: &[PathBuf]) -> Result<(), Box<dyn Error>> {
+    info!("👉 Read the zip files");
+
+    let mut archive;
+
+    for path in paths {
+        archive = zip::ZipArchive::new(File::open(path)?)?;
+
+        // for each csv file
+        for i in 0..archive.len() {
+            let mut csv = archive.by_index(i)?;
+            let mut buf = Vec::new();
+
+            if !csv.name().contains(".csv") {
+                continue;
+            }
+
+            csv.read_to_end(&mut buf)?;
+
+            let cursor = Cursor::new(buf);
+            let df = CsvReader::new(cursor).finish()?;
+
+            println!("{df}");
+        }
+    }
+
+    Ok(())
+}
