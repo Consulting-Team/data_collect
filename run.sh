@@ -4,21 +4,24 @@ cd $(dirname $0)
 
 cargo build -r
 
-###### Copy config files
-CFG_PATH="target/release/config"
-mkdir -p $CFG_PATH && cp log.yaml $CFG_PATH
+##### Copy resource files to target directory
+for TARGET in "release" "debug"; do
+    CFG_PATH="target/$TARGET/config"
+    mkdir -p $CFG_PATH && cp log.yaml $CFG_PATH
 
-CFG_PATH="target/debug/config"
-mkdir -p $CFG_PATH && cp log.yaml $CFG_PATH
+    cp .env "target/$TARGET"
+done
 
 
 ###### DP to csv
 # target/release/dp_to_csv \
-# -f res/DP_IMO9986104_20250530230013.xml \
-# -o DP_IMO9986104_20250530230013.csv
+# -f res/H2559_DP_IMO9986051_20250615093943.xml \
+# -o out/H2559_DP_IMO9986051_20250615093943.csv
 
 ###### concat data
 target/release/data_concat \
 --imo 9976927 \
 --out /home/azure/workspace/HOcean/data_collect/out \
 --date 20250601
+
+# --date 20250616

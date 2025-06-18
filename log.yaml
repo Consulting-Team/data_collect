@@ -8,7 +8,7 @@ appenders:
         level: info
   file:
     kind: file
-    path: $ENV{LOG_OUT}/data_concat.log
+    path: $ENV{LOG_OUT}/data_concat.$ENV{CURRENT_TIME}.log
     # append: false
     encoder:
       pattern: "{d(%Y-%m-%d %H:%M:%S)} [{f}:{L}] {h({l})} {m}{n}"

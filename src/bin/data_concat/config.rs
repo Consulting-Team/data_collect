@@ -1,6 +1,5 @@
 use argparse::{ArgumentParser, Store};
 use chrono::NaiveDate;
-use dotenv::dotenv;
 use std::{env, error::Error, path::PathBuf};
 
 #[derive(Debug)]
@@ -8,6 +7,7 @@ pub struct Config {
     pub base: PathBuf,
     pub out: PathBuf,
     pub data_dir: PathBuf,
+    pub dp_dir: PathBuf,
     pub imo: String,
     pub date: NaiveDate,
 }
@@ -17,13 +17,13 @@ impl Config {
         let exe = env::current_exe()?;
         let base = exe
             .parent()
-            .ok_or("Failed to get the base path.")?
+            .expect("- Failed to get the base path.")
             .to_path_buf();
         let mut imo = String::default();
         let mut date = String::default();
         let mut out = base.join("out");
 
-        dotenv().ok();
+        dotenv::from_path(base.join(".env")).expect("- Failed to read .env");
 
         // parse the arguments
         {
@@ -48,14 +48,15 @@ impl Config {
 
         unsafe {
             env::set_var("LOG_OUT", &out);
+            env::set_var("CURRENT_TIME", date.format("%Y%m%d").to_string());
         }
 
         // init log4rs
         // log4rs::init_file(base.join(env::var("LOG_CONFIG")?), Default::default())?;
         log4rs::init_file(base.join(env::var("LOG_CONFIG")?), Default::default())
-            .map_err(|e| format!("Failed to get the log config path.{e}"))?;
+            .expect("- Failed to read the log.yaml");
 
-        // set data path
+        // set data directory
         let data_dir = PathBuf::from(format!(
             "{}/IMO{}/{}/{}/{}",
             env::var("DATA_SOURCE")?,
@@ -65,12 +66,16 @@ impl Config {
             date.format("%d")
         ));
 
+        // set DP directory
+        let dp_dir = PathBuf::from(env::var("DP_PATH")?);
+
         Ok(Config {
             base,
             out,
             imo,
             date,
             data_dir,
+            dp_dir
         })
     }
 }

@@ -5,12 +5,12 @@ use std::{collections::HashMap, error::Error};
 
 #[derive(serde::Serialize)]
 pub struct Row {
-    LocalID: String,
-    OriginTag: String,
-    Description: String,
-    DeviceID: String,
-    Unit: String,
-    r#Type: String,
+    pub LocalID: String,
+    pub OriginTag: String,
+    pub Description: String,
+    pub DeviceID: String,
+    pub Unit: String,
+    pub r#Type: String,
 }
 
 pub fn parse_dp(path: &str) -> Result<Vec<Row>, Box<dyn Error>> {
